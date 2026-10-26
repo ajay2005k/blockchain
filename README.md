@@ -59,3 +59,15 @@ Tests use an isolated in-process Ethereum chain. They cover funding validation, 
 The frontend is a static Vite build. Build with the intended chain and contract configuration, then serve `dist/` through an HTTPS static host such as S3 behind CloudFront. An Ethereum RPC and deployed contract are separate from web hosting. Local RPC addresses cannot serve remote visitors. Do not expose Ganache publicly. A contract change requires a new deployment; existing agreements remain in the old contract.
 
 The contract has no owner withdrawal, upgrade controls, or platform fees. It uses pull payments and checks-effects-interactions for withdrawals. Independent security review is required before accepting valuable funds.
+
+### Deploy the AWS hosting stack
+
+`infra/hosting.yaml` creates an encrypted private S3 bucket, CloudFront origin access control, HTTPS delivery, and security response headers. The bucket is retained if the stack is deleted. CloudFront and S3 usage are billed to the selected AWS account.
+
+After installing dependencies, attaching an authorized AWS identity, and deploying the escrow contract to the selected Ethereum network, export `AWS_REGION`, `VITE_CHAIN_ID`, `VITE_CONTRACT_ADDRESS`, and `VITE_RPC_URL`. The RPC must be browser-accessible over HTTPS. Use `STACK_NAME` to select the dedicated hosting stack; it defaults to `stagelock-web`.
+
+```sh
+bash scripts/deploy-aws.sh
+```
+
+The script verifies the chain and contract, runs contract tests, builds the frontend, deploys the CloudFormation stack, uploads the assets, invalidates the entry page, and checks the HTTPS response. Build configuration contains no private keys. Keep the AWS identity and contract deployer credentials outside the repository.
