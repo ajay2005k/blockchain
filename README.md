@@ -36,6 +36,8 @@ Titles and delivery evidence are public on-chain. Keep private documents outside
 npm test
 npm run compile
 npm run build
+npx playwright install chromium
+npm run test:browser
 ```
 
 Tests use an isolated in-process Ethereum chain. They cover funding validation, authorization, delivery, settlement, withdrawals, replay protection, dispute allocations and expiry refunds.
