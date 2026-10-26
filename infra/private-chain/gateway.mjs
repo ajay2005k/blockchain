@@ -43,7 +43,7 @@ export function createGateway({token, request, metadata, maxPerMinute = 300}) {
       try { body = JSON.parse(Buffer.concat(chunks).toString()); }
       catch { return reply(res, 400, {error:'Invalid JSON'}); }
       const batch = Array.isArray(body) ? body : [body];
-      if (!batch.length || batch.length > 20) return reply(res, 400, {error:'Batch limit exceeded'});
+      if (!batch.length || batch.length > 100) return reply(res, 400, {error:'Batch limit exceeded'});
       const results = [];
       for (const call of batch) {
         const id = typeof call?.id === 'string' || typeof call?.id === 'number' ? call.id : null;
