@@ -6,3 +6,5 @@ artifacts/
 !.env.example
 test-results/
 playwright-report/
+
+.private-aws/

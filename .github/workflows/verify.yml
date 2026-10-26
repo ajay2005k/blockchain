@@ -13,6 +13,8 @@ jobs:
         with:
           node-version: 22
       - run: npm install --no-audit --no-fund
+      - run: bash -n scripts/deploy-aws.sh scripts/deploy-private-aws.sh scripts/show-review-wallets.sh infra/private-chain/start-instance.sh
+      - run: pipx run cfn-lint --non-zero-exit-code error infra/hosting.yaml infra/private-hosting.json
       - run: npm test
       - run: npm run compile
       - run: npm run build

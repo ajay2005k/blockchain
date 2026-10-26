@@ -1,0 +1,32 @@
+import {test} from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import {spawn} from 'node:child_process';
+import {once} from 'node:events';
+import {Wallet,JsonRpcProvider,FetchRequest,Contract,parseEther} from 'ethers';
+import {ABI} from '../src/abi.js';
+test('private chain deploys, accepts wallet-signed escrow funding, locks server accounts and persists after restart',{timeout:120000},async t=>{
+ const dir=fs.mkdtempSync(path.join(os.tmpdir(),'stagelock-chain-'));
+ const secrets=path.join(dir,'secrets');fs.mkdirSync(secrets);
+ const accounts=['Client','Contractor','Arbitrator','Reserve'].map(role=>{const w=Wallet.createRandom();return {role,address:w.address,privateKey:w.privateKey};});
+ const token='b'.repeat(64);fs.writeFileSync(path.join(secrets,'accounts.json'),JSON.stringify(accounts));fs.writeFileSync(path.join(secrets,'origin-token'),token);
+ let child,provider;
+ const stop=async()=>{if(provider){await provider.destroy();provider=null;}if(child&&child.exitCode===null){const exit=once(child,'exit');child.kill('SIGTERM');await exit;}child=null;};
+ t.after(async()=>{await stop();fs.rmSync(dir,{recursive:true,force:true});});
+ async function start(){child=spawn(process.execPath,['infra/private-chain/server.mjs'],{cwd:new URL('..',import.meta.url),env:{...process.env,CHAIN_DATA_DIR:path.join(dir,'data'),CHAIN_SECRETS_DIR:secrets,CHAIN_INTERNAL_PORT:'18546',CHAIN_GATEWAY_PORT:'18547'},stdio:['ignore','pipe','pipe']});await new Promise((resolve,reject)=>{let output='';const timer=setTimeout(()=>reject(Error('Private-chain startup timeout: '+output.slice(-2000))),45000);child.stderr.on('data',d=>output+=d);child.stdout.on('data',d=>{output+=d;if(output.includes('StageLock private chain ready.')){clearTimeout(timer);resolve();}});child.once('exit',code=>{clearTimeout(timer);if(code!==0)reject(Error('Chain exited: '+output.slice(-2000)));});});
+ const req=new FetchRequest('http://127.0.0.1:18547/rpc');req.setHeader('x-stagelock-origin',token);provider=new JsonRpcProvider(req);provider.pollingInterval=25;
+ return (await fetch('http://127.0.0.1:18547/rpc',{headers:{'x-stagelock-origin':token}})).json();}
+ let metadata=await start();const address=metadata.contractAddress;
+ assert.equal(metadata.chainId,731337);assert.equal((await provider.getNetwork()).chainId,731337n);
+ const c=new Contract(address,ABI,new Wallet(accounts[0].privateKey,provider));
+ const block=await provider.getBlock('latest');
+ await(await c.create(accounts[1].address,accounts[2].address,'Hosted agreement',Number(block.timestamp)+3600,['Delivery'],[parseEther('1')],{value:parseEther('1')})).wait();
+ assert.equal(await c.count(),1n);
+ const forbidden=await fetch('http://127.0.0.1:18547/rpc',{method:'POST',headers:{'Content-Type':'application/json','x-stagelock-origin':token},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'eth_sendTransaction',params:[{from:accounts[0].address,to:accounts[1].address,value:'0x1'}]})});
+ assert.equal((await forbidden.json()).error.code,-32601);
+ const locked=await fetch('http://127.0.0.1:18546',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:2,method:'eth_sendTransaction',params:[{from:accounts[0].address,to:accounts[1].address,value:'0x1'}]})});
+ assert.ok((await locked.json()).error,'Server-held accounts must be locked');
+ await stop();metadata=await start();assert.equal(metadata.contractAddress,address);assert.equal(await new Contract(address,ABI,provider).count(),1n);
+});

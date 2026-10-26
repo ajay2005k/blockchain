@@ -1,0 +1,7 @@
+{
+  "name": "stagelock-private-chain",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {"ethers":"6.15.0","solc":"0.8.30","ganache":"7.9.2"}
+}

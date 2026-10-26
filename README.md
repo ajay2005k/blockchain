@@ -71,3 +71,7 @@ bash scripts/deploy-aws.sh
 ```
 
 The script verifies the chain and contract, runs contract tests, builds the frontend, deploys the CloudFormation stack, uploads the assets, invalidates the entry page, and checks the HTTPS response. Build configuration contains no private keys. Keep the AWS identity and contract deployer credentials outside the repository.
+
+### AWS-hosted private review network
+
+To deploy the website and an independent Ethereum test chain together, follow [the private-network deployment guide](infra/PRIVATE_NETWORK.md). This option supplies four funded review wallets and does not require Sepolia faucet ETH. Run `scripts/deploy-private-aws.sh` from an authenticated AWS terminal. The chain has no monetary-value currency and remains under the AWS operator's control.
