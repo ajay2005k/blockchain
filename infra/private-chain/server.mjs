@@ -1,8 +1,10 @@
 import fs from 'node:fs';
 import ganache from 'ganache';
-import {JsonRpcProvider,Wallet,ContractFactory,parseEther} from 'ethers';
+import {JsonRpcProvider,Wallet,ContractFactory,parseEther,toBeHex} from 'ethers';
 import {compile} from '../../scripts/compile.mjs';
 import {createGateway} from './gateway.mjs';
+process.on('uncaughtException', e => { console.error('Private-chain startup failure:', e.message); process.exit(1); });
+process.on('unhandledRejection', e => { console.error('Private-chain request failure:', e?.message || String(e)); process.exit(1); });
 const data = process.env.CHAIN_DATA_DIR || '/data';
 const secrets = process.env.CHAIN_SECRETS_DIR || '/run/stagelock';
 const accounts = JSON.parse(fs.readFileSync(secrets+'/accounts.json','utf8'));
@@ -13,7 +15,7 @@ const chainId = 731337;
 const chain = ganache.server({
   logging:{quiet:true},
   chain:{chainId,networkId:chainId,hardfork:'shanghai',vmErrorsOnRPCResponse:true},
-  wallet:{lock:true,passphrase:token,accounts:accounts.map(a=>({secretKey:a.privateKey,balance:parseEther('1000').toString()})), unlockedAccounts:[]},
+  wallet:{lock:true,passphrase:token,accounts:accounts.map(a=>({secretKey:a.privateKey,balance:toBeHex(parseEther('1000'))})), unlockedAccounts:[]},
   database:{dbPath:data+'/chain'},miner:{blockGasLimit:15000000,defaultGasPrice:2000000000}
 });
 const internalPort = Number(process.env.CHAIN_INTERNAL_PORT || 8545);
